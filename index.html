@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>World IPTV</title>
+<meta name="theme-color" content="#0e1420">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<style>
+:root{--bg:#0e1420;--panel:#161e2e;--line:#2a3652;--txt:#eaeef6;--mute:#8f9db8;--focus:#ffc83d;--acc:#5b8cff;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus{outline:none}
+:focus-visible,.ch:focus,.chip:focus,.btn:focus{outline:4px solid var(--focus);outline-offset:-2px;border-radius:10px}
+.app{display:grid;grid-template-columns:minmax(300px,380px) 1fr;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+aside{display:flex;flex-direction:column;min-height:0;background:var(--panel);border-right:1px solid var(--line)}
+.top{display:flex;gap:8px;padding:12px}
+.top input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.btn{background:var(--acc);border:0;border-radius:10px;padding:12px 16px;font-weight:600;color:#fff}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:0 12px 12px;scrollbar-width:none}
+.chip{flex:none;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:8px 16px;white-space:nowrap}
+.chip.on{background:var(--txt);color:var(--bg);border-color:var(--txt)}
+#list{flex:1;overflow-y:auto;padding:0 8px 12px;-webkit-overflow-scrolling:touch}
+.ch{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:transparent;border:0;border-radius:10px;padding:10px 12px;min-height:60px}
+.ch:hover{background:#1f2a40}
+.ch.on{background:#22304d;box-shadow:inset 4px 0 0 var(--acc)}
+.logo{flex:none;width:44px;height:44px;border-radius:8px;background:#222d46;display:grid;place-items:center;font-weight:700;color:var(--mute);overflow:hidden}
+.logo img{width:100%;height:100%;object-fit:contain}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{display:block;font-size:13px;color:var(--mute)}
+.note{padding:14px;color:var(--mute);font-size:14px}
+#stage{position:relative;background:#000;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center}
+video{width:100%;height:100%;object-fit:contain;background:#000}
+#banner,#status{position:absolute;left:16px;right:16px}
+#banner{top:max(16px,env(safe-area-inset-top));display:flex;gap:10px;align-items:center;justify-content:space-between;opacity:0;transition:opacity .25s;pointer-events:none}
+#banner.show{opacity:1;pointer-events:auto}
+#banner b{background:rgba(14,20,32,.85);padding:10px 16px;border-radius:10px;font-size:20px}
+#banner .btn{background:rgba(14,20,32,.85)}
+#status{bottom:24px;text-align:center}
+#status span{background:rgba(14,20,32,.88);padding:10px 16px;border-radius:10px;display:inline-block}
+#status:empty{display:none}
+#fs{position:absolute;right:16px;bottom:16px;background:rgba(14,20,32,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.immersive .app{grid-template-columns:1fr}
+.immersive aside,.immersive #fs{display:none}
+#imp{position:fixed;inset:0;background:rgba(5,8,14,.86);display:none;place-items:center;padding:16px;z-index:5}
+#imp.open{display:grid}
+.card{width:min(560px,100%);max-height:100%;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:14px}
+.card h2{margin:0;font-size:22px}
+.card p{margin:0;color:var(--mute);font-size:14px}
+.card input[type=url],.card textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>input{flex:1;min-width:160px}
+#err{color:#ff8f8f;font-size:14px;min-height:1em}
+@media (max-width:820px),(orientation:portrait){
+ .app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+ #stage{order:-1;aspect-ratio:16/9;width:100%}
+ aside{border-right:0;border-top:1px solid var(--line)}
+ .immersive #stage{aspect-ratio:auto;height:100dvh}
+ .immersive .app{grid-template-rows:1fr}
+}
+@media (prefers-reduced-motion:reduce){#banner{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+ <aside>
+  <div class="top">
+   <input id="q" type="search" placeholder="Rechercher une chaîne" aria-label="Rechercher une chaîne">
+   <button class="btn ghost" id="openImp">Playlist</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+ </aside>
+ <main id="stage">
+  <video id="v" playsinline autoplay></video>
+  <div id="banner"><b id="bn"></b><button class="btn" id="exit">Quitter le plein écran</button></div>
+  <div id="status"></div>
+  <button id="fs">Plein écran</button>
+ </main>
+</div>
+
+<div id="imp" role="dialog" aria-modal="true" aria-labelledby="ti">
+ <div class="card">
+  <h2 id="ti">Ajouter une playlist</h2>
+  <p>Utilisez uniquement des flux que vous avez le droit de regarder. Format accepté : M3U / M3U8.</p>
+  <div class="row"><input id="url" type="url" placeholder="Lien de la playlist (https://…)"><button class="btn" id="goUrl">Charger</button></div>
+  <div class="row"><input id="file" type="file" accept=".m3u,.m3u8,text/plain,audio/x-mpegurl,application/vnd.apple.mpegurl"></div>
+  <textarea id="txt" placeholder="Ou collez le contenu de la playlist ici"></textarea>
+  <div class="row"><button class="btn" id="goTxt">Utiliser ce texte</button><button class="btn ghost" id="closeImp">Fermer</button></div>
+  <div id="err" role="alert"></div>
+ </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const v = $('#v');
+let channels = [], filtered = [], cur = -1, group = 'Toutes', hls = null, retries = 0, immersive = false, hudTimer;
+
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,val){ try { localStorage.setItem(k,val); } catch(e){} }
+};
+
+function parseM3U(text){
+  const out = []; let meta = null;
+  for (let l of text.split(/\r?\n/)) {
+    l = l.trim();
+    if (!l) continue;
+    if (l.startsWith('#EXTINF')) {
+      const g = /group-title="([^"]*)"/i.exec(l), lg = /tvg-logo="([^"]*)"/i.exec(l);
+      const name = l.slice(l.lastIndexOf(',') + 1).trim();
+      meta = { name: name || 'Sans nom', group: (g && g[1].trim()) || 'Autres', logo: lg ? lg[1] : '' };
+    } else if (l[0] !== '#') {
+      out.push({ ...(meta || { name: l, group: 'Autres', logo: '' }), url: l, i: out.length });
+      meta = null;
+    }
+  }
+  return out;
+}
+
+function setStatus(t){ $('#status').innerHTML = t ? '<span></span>' : ''; if (t) $('#status span').textContent = t; }
+function showBanner(name){
+  $('#bn').textContent = name || '';
+  const b = $('#banner'); b.classList.add('show');
+  clearTimeout(hudTimer); hudTimer = setTimeout(() => b.classList.remove('show'), 3500);
+}
+
+function renderChips(){
+  const groups = ['Toutes', ...new Set(channels.map(c => c.group))];
+  const box = $('#chips'); box.textContent = '';
+  groups.forEach(g => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (g === group ? ' on' : '');
+    b.textContent = g;
+    b.onclick = () => { group = g; renderChips(); renderList(); };
+    box.appendChild(b);
+  });
+}
+
+function renderList(){
+  const q = $('#q').value.trim().toLowerCase();
+  filtered = channels.filter(c => (group === 'Toutes' || c.group === group) && c.name.toLowerCase().includes(q));
+  const box = $('#list'); box.textContent = '';
+  if (!channels.length) { box.innerHTML = '<p class="note">Aucune chaîne. Ajoutez une playlist.</p>'; return; }
+  if (!filtered.length) { box.innerHTML = '<p class="note">Aucun résultat.</p>'; return; }
+  const frag = document.createDocumentFragment();
+  filtered.slice(0, 400).forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'ch' + (c.i === cur ? ' on' : '');
+    b.dataset.i = c.i;
+    const logo = document.createElement('span'); logo.className = 'logo';
+    logo.textContent = c.name.charAt(0).toUpperCase();
+    if (c.logo) {
+      const im = new Image(); im.alt = ''; im.loading = 'lazy'; im.src = c.logo;
+      im.onload = () => { logo.textContent = ''; logo.appendChild(im); };
+    }
+    const t = document.createElement('span'); t.className = 'nm';
+    t.textContent = c.name;
+    const s = document.createElement('span'); s.className = 'sub'; s.textContent = c.group;
+    t.appendChild(s);
+    b.append(logo, t);
+    b.onclick = () => play(c.i);
+    frag.appendChild(b);
+  });
+  box.appendChild(frag);
+  if (filtered.length > 400) { const p = document.createElement('p'); p.className = 'note'; p.textContent = 'Affinez la recherche pour voir les ' + (filtered.length - 400) + ' autres chaînes.'; box.appendChild(p); }
+}
+
+function destroyHls(){ if (hls) { hls.destroy(); hls = null; } }
+
+function play(i){
+  const c = channels[i]; if (!c) return;
+  cur = i; retries = 0; store.set('iptv.last', c.url);
+  document.querySelectorAll('.ch').forEach(el => el.classList.toggle('on', +el.dataset.i === i));
+  showBanner(c.name); setStatus('Chargement…'); destroyHls();
+  const direct = /\.(mp4|webm|mkv)(\?|$)/i.test(c.url);
+  if (!direct && window.Hls && Hls.isSupported()) {
+    hls = new Hls({ maxBufferLength: 30, enableWorker: true });
+    hls.on(Hls.Events.ERROR, (_, d) => {
+      if (!d.fatal) return;
+      if (d.type === Hls.ErrorTypes.NETWORK_ERROR && retries++ < 3) { setStatus('Reconnexion…'); hls.startLoad(); }
+      else if (d.type === Hls.ErrorTypes.MEDIA_ERROR && retries++ < 3) hls.recoverMediaError();
+      else setStatus('Flux indisponible. Essayez une autre chaîne.');
+    });
+    hls.loadSource(c.url); hls.attachMedia(v);
+  } else {
+    v.src = c.url;
+  }
+  v.play().catch(() => {});
+}
+
+function zap(d){
+  if (!filtered.length) return;
+  let k = filtered.findIndex(c => c.i === cur);
+  k = (k + d + filtered.length) % filtered.length;
+  play(filtered[k].i);
+}
+
+v.addEventListener('playing', () => setStatus(''));
+v.addEventListener('waiting', () => setStatus('Mise en mémoire…'));
+v.addEventListener('error', () => { if (!hls) setStatus('Ce flux ne peut pas être lu sur cet appareil.'); });
+
+function setImmersive(on){
+  immersive = on; document.body.classList.toggle('immersive', on);
+  if (on) { showBanner(channels[cur] ? channels[cur].name : ''); const s = $('#stage'); if (s.requestFullscreen && !document.fullscreenElement) s.requestFullscreen().catch(() => {}); }
+  else { $('#banner').classList.remove('show'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); const on_ = document.querySelector('.ch.on'); if (on_) on_.focus(); }
+}
+$('#fs').onclick = () => setImmersive(true);
+$('#exit').onclick = () => setImmersive(false);
+$('#stage').addEventListener('click', e => { if (immersive && e.target === v) showBanner(channels[cur] && channels[cur].name); });
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && immersive) setImmersive(false); });
+
+addEventListener('keydown', e => {
+  if ($('#imp').classList.contains('open')) { if (e.key === 'Escape') closeImp(); return; }
+  const t = e.target;
+  if (/^(INPUT|TEXTAREA)$/.test(t.tagName)) return;
+  const k = e.key;
+  if (immersive) {
+    if (k === 'ArrowUp' || k === 'PageUp') zap(-1);
+    else if (k === 'ArrowDown' || k === 'PageDown') zap(1);
+    else if (k === 'ArrowLeft' || k === 'Escape' || k === 'Backspace' || k === 'GoBack') setImmersive(false);
+    else if (k === 'Enter' || k === ' ') { v.paused ? v.play() : v.pause(); showBanner(channels[cur] && channels[cur].name); }
+    else if (k === 'm') v.muted = !v.muted;
+    else return;
+    e.preventDefault(); return;
+  }
+  if (k === 'ArrowRight' && t.classList.contains('ch')) { e.preventDefault(); play(+t.dataset.i); setImmersive(true); }
+  else if (k === 'PageUp') zap(-1);
+  else if (k === 'PageDown') zap(1);
+  else if (k === 'f') setImmersive(true);
+});
+
+/* Import */
+function openImp(){ $('#imp').classList.add('open'); $('#err').textContent = ''; $('#url').focus(); }
+function closeImp(){ if (channels.length) { $('#imp').classList.remove('open'); const o = document.querySelector('.ch.on') || document.querySelector('.ch'); if (o) o.focus(); } else $('#err').textContent = 'Ajoutez d’abord une playlist.'; }
+$('#openImp').onclick = openImp;
+$('#closeImp').onclick = closeImp;
+
+function load(text, remember){
+  const list = parseM3U(text);
+  if (!list.length) { $('#err').textContent = 'Aucune chaîne trouvée dans cette playlist.'; return false; }
+  channels = list; group = 'Toutes'; cur = -1; $('#q').value = '';
+  renderChips(); renderList();
+  $('#imp').classList.remove('open');
+  if (remember) store.set('iptv.src', JSON.stringify(remember));
+  const last = store.get('iptv.last'), found = channels.find(c => c.url === last) || channels[0];
+  play(found.i);
+  return true;
+}
+
+$('#goUrl').onclick = async () => {
+  const u = $('#url').value.trim(); if (!u) return;
+  $('#err').textContent = 'Chargement…';
+  try {
+    const r = await fetch(u); if (!r.ok) throw new Error(r.status);
+    load(await r.text(), { type: 'url', value: u });
+  } catch (e) {
+    $('#err').textContent = 'Impossible de charger ce lien (accès bloqué par le serveur ou lien invalide). Téléchargez la playlist et importez le fichier.';
+  }
+};
+$('#file').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const text = await f.text();
+  load(text, text.length < 2e6 ? { type: 'text', value: text } : null);
+};
+$('#goTxt').onclick = () => { const t = $('#txt').value; if (t.trim()) load(t, t.length < 2e6 ? { type: 'text', value: t } : null); };
+$('#q').addEventListener('input', renderList);
+
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+/* Démarrage */
+(async function init(){
+  renderList();
+  let s = null; try { s = JSON.parse(store.get('iptv.src')); } catch(e){}
+  if (s && s.type === 'text') { load(s.value); return; }
+  if (s && s.type === 'url') {
+    try { const r = await fetch(s.value); if (r.ok && load(await r.text())) return; } catch(e){}
+  }
+  openImp();
+})();
+</script>
+</body>
+</html>
