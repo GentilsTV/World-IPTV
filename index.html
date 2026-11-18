@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>World IPTV</title>
+<meta name="theme-color" content="#0d1320">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<style>
+:root{--bg:#0d1320;--p:#141c2c;--p2:#1b2640;--ln:#27324d;--tx:#e9edf6;--mu:#8e9bb6;--fo:#ffc83d;--ac:#4f86ff;color-scheme:dark}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}button{cursor:pointer}
+:focus{outline:none}:focus-visible,button:focus,input:focus{outline:4px solid var(--fo);outline-offset:-3px}
+#app{display:grid;grid-template-columns:210px minmax(340px,460px) 1fr;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#groups{background:var(--p);overflow-y:auto;padding:12px 8px;border-right:1px solid var(--ln)}
+.g{display:block;width:100%;text-align:left;background:none;border:0;border-radius:10px;padding:12px 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mu)}
+.g.on{background:var(--p2);color:var(--tx);box-shadow:inset 4px 0 0 var(--ac)}
+#chans{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--ln)}
+.bar{display:flex;gap:8px;padding:12px}
+.bar input{flex:1;min-width:0;background:var(--p);border:1px solid var(--ln);border-radius:10px;padding:11px 14px}
+.btn{background:var(--ac);border:0;border-radius:10px;padding:11px 15px;font-weight:600;color:#fff}
+.btn.gh{background:transparent;border:1px solid var(--ln);color:var(--tx)}
+#list{flex:1;overflow-y:auto;padding:0 8px 12px}
+.row{display:flex;align-items:center;gap:4px;border-radius:10px}.row.on{background:var(--p2)}
+.ch{flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:none;border:0;text-align:left;padding:9px 10px;min-height:64px;border-radius:10px}
+.no{flex:none;width:34px;text-align:right;color:var(--mu);font-size:14px}
+.lg{flex:none;width:44px;height:44px;border-radius:8px;background:#212c47;display:grid;place-items:center;font-weight:700;color:var(--mu);overflow:hidden}
+.lg img{width:100%;height:100%;object-fit:contain}
+.tx{flex:1;min-width:0}.tx b,.tx i{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:normal}
+.tx i{font-size:13px;color:var(--mu)}
+.pb{display:block;height:3px;background:var(--ln);border-radius:2px;margin-top:5px}.pb u{display:block;height:100%;background:var(--ac);border-radius:2px;text-decoration:none}
+.fv{flex:none;width:44px;height:44px;background:none;border:0;border-radius:10px;font-size:22px;color:var(--mu)}.fv.on{color:var(--fo)}
+.note{padding:14px;color:var(--mu);font-size:14px;margin:0}
+#right{display:flex;flex-direction:column;min-width:0;min-height:0}
+#stage{position:relative;background:#000;aspect-ratio:16/9;width:100%}
+video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.ov{position:absolute;bottom:10px;background:rgba(13,19,32,.85);border:1px solid var(--ln);border-radius:10px;padding:8px 12px}
+#fsb{right:10px}#ql{right:130px}
+#status{position:absolute;left:0;right:0;bottom:70px;text-align:center;pointer-events:none}
+#status span{background:rgba(13,19,32,.9);padding:8px 14px;border-radius:10px;display:inline-block}
+#num{position:absolute;top:20px;right:28px;font-size:56px;font-weight:700;background:rgba(13,19,32,.85);padding:4px 20px;border-radius:12px;display:none}
+#num.show{display:block}
+#hud{position:absolute;left:0;right:0;bottom:0;padding:40px 28px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(5,8,14,.94));opacity:0;transition:opacity .25s;pointer-events:none;display:none}
+#hud.show{opacity:1}#h1{font-size:26px;font-weight:700}#h2{font-size:18px;margin-top:4px}#h3{color:var(--mu);margin-top:2px}
+#hb{height:4px;background:var(--ln);border-radius:2px;margin-top:10px}#hp{height:100%;background:var(--fo);border-radius:2px;width:0}
+#info{padding:16px 20px;overflow:auto;flex:1}#info h2{margin:0 0 4px}#info h3{margin:10px 0 4px}#info p{margin:4px 0}.mu{color:var(--mu)}
+body[data-view=fs] #stage{position:fixed;inset:0;z-index:3;aspect-ratio:auto;height:100dvh}
+body[data-view=fs] #hud{display:block}body[data-view=fs] .ov{display:none}
+body[data-view=fs] #app>*:not(#right),body[data-view=fs] #info{display:none}
+body[data-view=guide] #app{visibility:hidden}
+#guide{display:none;position:fixed;inset:0;z-index:4;background:var(--bg);flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body[data-view=guide] #guide{display:flex}
+.gh{display:flex;justify-content:space-between;align-items:center;padding:12px 16px}
+#gscroll{flex:1;overflow:auto}
+.gt{display:flex;position:sticky;top:0;z-index:3;background:var(--bg);height:34px;padding-left:160px;color:var(--mu);font-size:14px}
+.tk{flex:none;border-left:1px solid var(--ln);padding-left:6px}
+.gr{display:flex;height:60px;border-bottom:1px solid var(--ln);width:max-content;min-width:100%}
+.gn{position:sticky;left:0;z-index:2;flex:none;width:160px;background:var(--p);border:0;border-right:1px solid var(--ln);text-align:left;padding:8px 10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.gl{position:relative;flex:none}.nop{position:absolute;left:10px;top:18px;color:var(--mu);font-size:14px}
+.pg{position:absolute;top:4px;height:52px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:var(--p2);border:0;border-radius:8px;text-align:left;padding:6px 10px;font-size:14px}.pg.now{background:#2b4177}
+#imp{position:fixed;inset:0;background:rgba(5,8,14,.88);display:none;place-items:center;padding:16px;z-index:6}#imp.open{display:grid}
+.card{width:min(580px,100%);max-height:100%;overflow:auto;background:var(--p);border:1px solid var(--ln);border-radius:16px;padding:20px;display:grid;gap:12px}
+.card h2{margin:0;font-size:22px}.card h3{margin:6px 0 0;font-size:16px}.card p{margin:0;color:var(--mu);font-size:14px}
+.card input[type=url],.card input[type=text],.card textarea{width:100%;background:var(--bg);border:1px solid var(--ln);border-radius:10px;padding:11px 14px}
+.card textarea{min-height:70px;resize:vertical}.row2{display:flex;gap:8px;flex-wrap:wrap}.row2>input{flex:1;min-width:160px}
+#err{color:#9fd0ff;font-size:14px;min-height:1em}
+@media (max-width:820px),(orientation:portrait){
+ #app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr)}
+ #right{order:-1;flex:none}#info{display:none}
+ #groups{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px;border-right:0}
+ .g{width:auto;flex:none;border:1px solid var(--ln);border-radius:999px}.g.on{box-shadow:none}
+ #chans{border-right:0}
+}
+@media (prefers-reduced-motion:reduce){#hud{transition:none}}
+#gate,#set{position:fixed;inset:0;background:rgba(5,8,14,.94);display:none;place-items:center;padding:16px;z-index:8;overflow:auto}
+#set{z-index:7;background:rgba(5,8,14,.88)}#gate.open,#set.open{display:grid}
+.brand{margin:0;text-align:center;font-size:40px;color:var(--fo)}.hl{color:var(--fo)!important;font-weight:600;text-align:center}
+#plans{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.plan{background:transparent;border:1px solid var(--ac);border-radius:12px;padding:12px 14px;text-align:left;display:grid;gap:2px}
+.plan b{color:var(--ac);font-size:20px}.plan.on{background:var(--p2);box-shadow:inset 0 0 0 2px var(--ac)}
+.imp{border:1px dashed #2f6a4a;background:#12261d;border-radius:10px;padding:10px 12px}
+.wa{background:#0cc552}.dn{background:#ef4444}.card label{color:var(--mu);font-size:14px}
+.plr{display:flex;gap:8px;align-items:center}.plt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mono{word-break:break-all;color:var(--fo)!important}
+.tv *{transition:none!important;animation:none!important}
+</style>
+</head>
+<body data-view="home">
+<div id="app">
+ <nav id="groups" aria-label="Groupes"></nav>
+ <section id="chans">
+  <div class="bar"><input id="q" type="search" placeholder="Rechercher" aria-label="Rechercher une chaîne"><button class="btn" id="gBtn">Guide</button><button class="btn gh" id="pBtn">Playlist</button><button class="btn gh" id="sBtn" aria-label="Paramètres">⚙</button></div>
+  <div id="list"></div>
+ </section>
+ <div id="right">
+  <main id="stage">
+   <video id="v" playsinline autoplay></video>
+   <div id="num"></div><div id="status"></div>
+   <div id="hud"><div id="h1"></div><div id="h2"></div><div id="h3"></div><div id="hb"><div id="hp"></div></div></div>
+   <button class="ov" id="ql">Qualité : Auto</button><button class="ov" id="fsb">Plein écran</button>
+  </main>
+  <div id="info"></div>
+ </div>
+</div>
+<div id="guide"><div class="gh"><b>Guide des programmes</b><button class="btn gh" id="gx">Fermer</button></div><div id="gscroll"></div></div>
+<div id="imp" role="dialog" aria-modal="true" aria-labelledby="ti"><div class="card">
+ <h2 id="ti">Mes playlists et guide</h2>
+ <p>Utilisez uniquement des flux que vous avez le droit de regarder.</p>
+ <div id="pls"></div><h3>Ajouter une playlist (M3U / M3U8)</h3>
+ <input id="plName" type="text" placeholder="Nom de la playlist (facultatif)">
+ <div class="row2"><input id="url" type="url" placeholder="Lien de la playlist (https://…)"><button class="btn" id="goUrl">Charger</button></div>
+ <input id="file" type="file" accept=".m3u,.m3u8,text/plain">
+ <textarea id="txt" placeholder="Ou collez la playlist ici"></textarea>
+ <div class="row2"><button class="btn" id="goTxt">Utiliser ce texte</button></div>
+ <h3>Guide des programmes (XMLTV)</h3>
+ <div class="row2"><input id="epgUrl" type="url" placeholder="Lien XMLTV (.xml ou .xml.gz)"><button class="btn" id="goEpg">Charger</button></div>
+ <input id="epgFile" type="file" accept=".xml,.gz,text/xml">
+ <div class="row2"><button class="btn gh" id="closeImp">Fermer</button></div>
+ <div id="err" role="alert"></div>
+</div></div>
+<div id="gate" role="dialog" aria-modal="true"><div class="card">
+ <h1 class="brand">World IPTV</h1>
+ <p class="hl">🎁 Parrainez vos proches et gagnez 7 % sur chaque abonnement !</p>
+ <p>Chaînes incluses, vos propres playlists, et jusqu’à 5 appareils par code.</p>
+ <h3>Paiement via Wave</h3><div id="plans"></div>
+ <p class="imp"><b>Important :</b> après le paiement, envoyez la capture sur WhatsApp pour recevoir votre code VIP.</p>
+ <label for="gPseudo">Déjà payé ? Entrez votre pseudo</label>
+ <input id="gPseudo" type="text" placeholder="Votre nom / pseudo" autocomplete="off">
+ <button class="btn wa" id="gWa">Envoyer la capture sur WhatsApp</button>
+ <label for="gCode">Vous avez reçu votre code VIP ?</label>
+ <input id="gCode" type="text" placeholder="Entrez votre code secret" autocomplete="off" autocapitalize="characters">
+ <button class="btn" id="gGo">Activer le mode VIP</button>
+ <div id="gErr" role="alert"></div>
+</div></div>
+<div id="set" role="dialog" aria-modal="true"><div class="card">
+ <h2>Paramètres et parrainage</h2>
+ <p id="sExp"></p>
+ <h3>Votre lien de parrainage</h3><p id="sRef" class="mono"></p>
+ <button class="btn" id="sCopy">Copier mon lien</button>
+ <p>Filleuls : <b id="sFil">0</b> · Gains : <b id="sGain">0 F</b></p>
+ <button class="btn wa" id="sRet">Demander un retrait (WhatsApp)</button>
+ <button class="btn gh" id="sEng">Moteur de lecture : Auto</button>
+ <button class="btn gh" id="sPl">Mes playlists</button>
+ <div class="row2"><button class="btn gh" id="sClose">Fermer</button><button class="btn dn" id="sOut">Se déconnecter</button></div>
+</div></div>
+<script>
+const $=s=>document.querySelector(s), v=$('#v');
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,x){try{localStorage.setItem(k,x)}catch(e){}}};
+const jget=(k,d)=>{try{return JSON.parse(store.get(k))||d}catch(e){return d}};
+const UA=navigator.userAgent;
+const isTV=/Android TV|GoogleTV|SMART-TV|SmartTV|Tizen|Web0S|WebOS|AFTB|AFTT|AFTM|BRAVIA|HbbTV|Fire TV/i.test(UA)||(screen.width>=1280&&/Android/i.test(UA)&&!/Mobile/i.test(UA));
+let channels=[],list=[],cur=-1,group=store.get('iptv.g')||'Toutes',hls=null,retries=0,view='home',hudT,numT,numBuf='',epgFail=false;
+const LIM=isTV?150:400;
+let qPref=store.get('iptv.q')||(isTV?'480':'auto'),stalls=[],started=false,curAlt=0,stallT,wd=0,eng=store.get('iptv.eng')||'auto';
+if(isTV)document.body.classList.add('tv');
+let epg=new Map(),names=new Map(),favs=new Set(jget('iptv.fav',[])),recents=jget('iptv.rec',[]);
+const norm=s=>(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const hm=t=>new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
+/* Configuration à modifier */
+const CFG={
+ api:'https://script.google.com/macros/s/AKfycbyhr-XKy6_A_6-Z1JzAKXq_FuwGl5kT6kxZpMq_GOcAiqv5nBpaHIIqo_JtPnqHbVEU/exec',
+ wa:'225XXXXXXXXXX',
+ site:location.origin+location.pathname.replace(/index\.html$/,''),
+ plans:[
+  {m:1,d:30,p:3000,u:'https://pay.wave.com/m/M_dQNxOa48-kSX/c/ci/?amount=3000'},
+  {m:3,d:90,p:9000,u:'https://pay.wave.com/m/M_dQNxOa48-kSX/c/ci/?amount=9000'},
+  {m:6,d:180,p:17000,u:'https://pay.wave.com/m/M_dQNxOa48-kSX/c/ci/?amount=17000'},
+  {m:12,d:365,p:20000,u:'https://pay.wave.com/m/M_dQNxOa48-kSX/c/ci/?amount=20000'}]
+};
+const DEFAULT_PL='https://iptv-org.github.io/iptv/index.language.m3u';
+const EXTRA=[{name:'NCI (direct)',group:'French',logo:'https://nci.ci/assets/images/logo_nci.png',id:'',n:0,
+ url:'https://nci.cdn.easybroadcast.fr/NCI_ABR/ncipix/playlist.m3u8',alt:['https://nci.cdn.easybroadcast.fr/NCI_HEVC/index.m3u8']}];
+const fcfa=n=>Number(n||0).toLocaleString('fr-FR')+' F';
+let sess=jget('iptv.sess',null),selPlan=null,pls=jget('iptv.pls',[]);
+(()=>{const r=new URLSearchParams(location.search).get('ref');if(r)store.set('iptv.ref',r.slice(0,40))})();
+const dev=(()=>{let d=store.get('iptv.dev');if(!d){d=crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random();store.set('iptv.dev',d)}return d})();
+async function api(b){const r=await fetch(CFG.api,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({...b,dev})});return r.json()}
+const waLink=m=>window.open('https://wa.me/'+CFG.wa+'?text='+encodeURIComponent(m),'_blank','noopener');
+const saveSess=()=>store.set('iptv.sess',sess?JSON.stringify(sess):'');
+
+function buildGate(){
+ const box=$('#plans');box.textContent='';
+ CFG.plans.forEach(p=>{const b=el('button','plan');b.append(el('span',null,p.m+' Mois'),el('b',null,fcfa(p.p)));
+  b.onclick=()=>{selPlan=p;[...box.children].forEach(x=>x.classList.toggle('on',x===b));window.open(p.u,'_blank','noopener')};box.append(b)});
+}
+function lockApp(msg){
+ try{v.pause();destroyHls()}catch(e){}
+ $('#imp').classList.remove('open');$('#set').classList.remove('open');
+ $('#gate').classList.add('open');$('#gErr').textContent=msg||'';buildGate();$('#gCode').focus();
+}
+function unlock(){$('#gate').classList.remove('open');$('#set').classList.remove('open');renderPls();usePl(store.get('iptv.pl')||'default')}
+$('#gWa').onclick=()=>{
+ const ps=$('#gPseudo').value.trim();
+ if(!selPlan||!ps){$('#gErr').textContent='Choisissez une formule, payez, puis entrez votre pseudo.';return}
+ const ref=store.get('iptv.ref');
+ waLink('Bonjour, j’ai payé l’abonnement '+selPlan.m+' mois ('+selPlan.d+' jours, '+fcfa(selPlan.p)+').\nPseudo : '+ps+(ref?'\nParrain : '+ref:'')+'\nVoici la capture du paiement.');
+};
+$('#gGo').onclick=async()=>{
+ const c=$('#gCode').value.trim();if(!c)return;$('#gErr').textContent='Vérification…';
+ try{
+  const r=await api({a:'login',code:c});
+  if(!r.ok){$('#gErr').textContent=r.err||'Code invalide.';return}
+  sess={code:c.toUpperCase(),pseudo:r.pseudo,refId:r.refId,exp:r.exp,playlist:r.playlist};saveSess();unlock();
+ }catch(e){$('#gErr').textContent='Connexion impossible. Vérifiez votre connexion internet.'}
+};
+async function boot(){
+ if(!sess){lockApp();return}
+ try{
+  const r=await api({a:'login',code:sess.code});
+  if(r.ok){sess={...sess,pseudo:r.pseudo,refId:r.refId,exp:r.exp,playlist:r.playlist};saveSess();unlock();return}
+  sess=null;saveSess();lockApp(r.err);
+ }catch(e){if(sess.exp>Date.now())unlock();else lockApp('Connexion impossible. Vérifiez votre connexion internet.')}
+}
+setInterval(()=>{if(sess&&sess.exp<Date.now()){sess=null;saveSess();lockApp('Votre abonnement a expiré.')}},60000);
+
+/* Paramètres et parrainage */
+const refLink=()=>CFG.site+'?ref='+encodeURIComponent(sess.refId);
+$('#sBtn').onclick=async()=>{
+ if(!sess)return;engTxt();$('#set').classList.add('open');
+ $('#sRef').textContent=refLink();$('#sFil').textContent='…';$('#sGain').textContent='…';$('#sCopy').textContent='Copier mon lien';
+ $('#sExp').textContent='Abonnement valable jusqu’au '+new Date(sess.exp).toLocaleDateString('fr-FR')+'.';
+ try{const r=await api({a:'stats',code:sess.code});if(r.ok){$('#sFil').textContent=r.filleuls;$('#sGain').textContent=fcfa(r.gains)}}catch(e){}
+};
+$('#sCopy').onclick=async()=>{try{await navigator.clipboard.writeText(refLink());$('#sCopy').textContent='Lien copié ✓'}catch(e){prompt('Copiez ce lien :',refLink())}};
+$('#sRet').onclick=()=>waLink('Bonjour, je demande le retrait de mes gains de parrainage.\nPseudo : '+sess.pseudo+'\nIdentifiant : '+sess.refId+'\nGains : '+$('#sGain').textContent);
+$('#sClose').onclick=()=>$('#set').classList.remove('open');
+const engL={auto:'Auto',native:'Natif (TV)',hlsjs:'hls.js'};
+function engTxt(){$('#sEng').textContent='Moteur de lecture : '+engL[eng]}
+$('#sEng').onclick=()=>{eng=eng==='auto'?'native':eng==='native'?'hlsjs':'auto';store.set('iptv.eng',eng);engTxt();if(cur>=0)play(cur,curAlt)};
+$('#sPl').onclick=()=>{$('#set').classList.remove('open');openImp()};
+$('#sOut').onclick=()=>{sess=null;saveSess();channels=[];cur=-1;renderList();renderInfo();lockApp()};
+
+/* Playlists enregistrées */
+const hostOf=u=>{try{return new URL(u).hostname}catch(e){return 'Playlist'}};
+const savePls=()=>store.set('iptv.pls',JSON.stringify(pls));
+const allPls=()=>[{id:'default',name:'Chaînes incluses',type:'url',value:DEFAULT_PL},...pls];
+function addPl(name,type,value){
+ if(type==='text'&&!value)return;
+ let p=pls.find(x=>x.value===value);
+ if(!p){p={id:'p'+Date.now(),name:(name||'').trim()||'Playlist',type,value};pls.push(p);savePls()}
+ store.set('iptv.pl',p.id);renderPls();
+}
+async function usePl(id){
+ const p=allPls().find(x=>x.id===id)||allPls()[0];$('#err').textContent='Chargement…';
+ try{const t=p.type==='url'?await fetchText(p.value):p.value;if(loadList(t,p.id==='default')){store.set('iptv.pl',p.id);renderPls();return}}
+ catch(e){$('#err').textContent='Playlist inaccessible.'}
+ if(!channels.length)openImp();
+}
+function renderPls(){
+ const b=$('#pls');b.textContent='';const act=store.get('iptv.pl')||'default';
+ allPls().forEach(p=>{
+  const r=el('div','plr');r.append(el('span','plt',(p.id===act?'▶ ':'')+p.name));
+  const u=el('button','btn gh','Utiliser');u.onclick=()=>usePl(p.id);r.append(u);
+  if(p.id!=='default'){const d=el('button','btn gh','✕');d.setAttribute('aria-label','Supprimer');
+   d.onclick=()=>{pls=pls.filter(x=>x.id!==p.id);savePls();if(store.get('iptv.pl')===p.id)store.set('iptv.pl','default');renderPls()};r.append(d)}
+  b.append(r);
+ });
+}
+
+/* Playlist */
+function parseM3U(t,wx){
+ const out=wx?EXTRA.map((c,i)=>({...c,i})):[];let m=null,tvg='';
+ for(let l of t.split(/\r?\n/)){l=l.trim();if(!l)continue;
+  if(l.startsWith('#EXTM3U')){const x=/(?:url-tvg|x-tvg-url)="([^"]+)"/i.exec(l);if(x)tvg=x[1].split(',')[0].trim();}
+  else if(l.startsWith('#EXTINF')){
+   const a=k=>{const r=new RegExp(k+'="([^"]*)"','i').exec(l);return r?r[1].trim():''};
+   const k=l.lastIndexOf(',');
+   m={name:(k>=0?l.slice(k+1).trim():'')||a('tvg-name')||'Sans nom',group:a('group-title')||'Autres',logo:a('tvg-logo'),id:a('tvg-id'),n:parseInt(a('tvg-chno'))||0};
+  }else if(l[0]!=='#'){out.push({...(m||{name:l,group:'Autres',logo:'',id:'',n:0}),url:l,i:out.length});m=null;}
+ }
+ out.forEach(c=>{if(!c.n)c.n=c.i+1});
+ return{out,tvg};
+}
+
+/* Guide XMLTV */
+function pt(s){const m=/(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)?\s*([+-]\d{4})?/.exec(s||'');if(!m)return 0;const z=m[7]?m[7].slice(0,3)+':'+m[7].slice(3):'Z';return Date.parse(m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+(m[6]||'00')+z)}
+function loadEpg(xml){
+ const doc=new DOMParser().parseFromString(xml,'text/xml');
+ if(doc.querySelector('parsererror'))throw new Error('xml');
+ const now=Date.now(),lo=now-3600e3,hi=now+36*3600e3,m=new Map(),nm=new Map();
+ doc.querySelectorAll('programme').forEach(p=>{
+  const s=pt(p.getAttribute('start')),e=pt(p.getAttribute('stop'));if(!e||e<lo||s>hi)return;
+  const id=p.getAttribute('channel'),t=p.querySelector('title'),d=p.querySelector('desc');
+  if(!m.has(id))m.set(id,[]);m.get(id).push({s,e,t:t?t.textContent:'',d:d?d.textContent:''});
+ });
+ m.forEach(a=>a.sort((x,y)=>x.s-y.s));
+ doc.querySelectorAll('channel').forEach(c=>{const n=c.querySelector('display-name'),id=c.getAttribute('id');if(n&&m.has(id)&&!nm.has(norm(n.textContent)))nm.set(norm(n.textContent),id)});
+ epg=m;names=nm;epgFail=false;renderList();renderInfo();
+}
+async function fetchText(u){
+ const r=await fetch(u);if(!r.ok)throw new Error(r.status);
+ if(/\.gz(\?|$)/i.test(u)&&window.DecompressionStream)return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text();
+ return r.text();
+}
+async function fileText(f){
+ if(/\.gz$/i.test(f.name)&&window.DecompressionStream)return new Response(f.stream().pipeThrough(new DecompressionStream('gzip'))).text();
+ return f.text();
+}
+async function getEpg(u){try{loadEpg(await fetchText(u));store.set('iptv.epg',u)}catch(e){epgFail=true;renderInfo()}}
+function progs(c){return epg.get(c.id)||epg.get(names.get(norm(c.name)))||[]}
+function nowNext(c){const a=progs(c),t=Date.now(),k=a.findIndex(p=>p.s<=t&&t<p.e);return k<0?[null,a.find(p=>p.s>t)||null]:[a[k],a[k+1]||null]}
+
+/* Affichage */
+function renderGroups(){
+ const gs=['Favoris','Récents','Toutes',...new Set(channels.map(c=>c.group))],box=$('#groups');box.textContent='';
+ gs.forEach(g=>{const b=el('button','g'+(g===group?' on':''),g);b.onclick=()=>{group=g;store.set('iptv.g',g);renderGroups();renderList()};box.append(b)});
+}
+function filterList(){
+ const q=$('#q').value.trim().toLowerCase();
+ const base=group==='Favoris'?channels.filter(c=>favs.has(c.url)):group==='Récents'?recents.map(u=>channels.find(c=>c.url===u)).filter(Boolean):group==='Toutes'?channels:channels.filter(c=>c.group===group);
+ list=base.filter(c=>c.name.toLowerCase().includes(q));
+}
+function fillRow(c,sub,bar){const n=nowNext(c)[0];sub.textContent=n?n.t:c.group;bar.style.width=n?Math.min(100,Math.max(0,(Date.now()-n.s)/(n.e-n.s)*100))+'%':'0'}
+function renderList(){
+ filterList();const box=$('#list');box.textContent='';
+ if(!channels.length){box.append(el('p','note','Aucune chaîne. Ajoutez une playlist.'));return}
+ if(!list.length){box.append(el('p','note',group==='Favoris'?'Aucun favori. Appuyez sur l’étoile d’une chaîne.':'Aucun résultat.'));return}
+ const fr=document.createDocumentFragment();
+ list.slice(0,LIM).forEach(c=>{
+  const r=el('div','row'+(c.i===cur?' on':''));r.dataset.i=c.i;
+  const b=el('button','ch'),lg=el('span','lg',c.name.charAt(0).toUpperCase());
+  if(c.logo&&!isTV){const im=new Image();im.alt='';im.loading='lazy';im.onload=()=>{lg.textContent='';lg.append(im)};im.src=c.logo}
+  const tx=el('span','tx'),sub=el('i'),bar=el('u'),pb=el('span','pb');pb.append(bar);
+  tx.append(el('b',null,c.name),sub,pb);fillRow(c,sub,bar);
+  b.append(el('span','no',c.n),lg,tx);
+  b.onclick=e=>{if(c.i===cur||e.detail===0){if(c.i!==cur)play(c.i);setView('fs')}else play(c.i)};
+  const on=favs.has(c.url),f=el('button','fv'+(on?' on':''),on?'★':'☆');f.setAttribute('aria-label','Favori');
+  f.onclick=()=>{favs.has(c.url)?favs.delete(c.url):favs.add(c.url);store.set('iptv.fav',JSON.stringify([...favs]));if(group==='Favoris')renderList();else{const o=favs.has(c.url);f.classList.toggle('on',o);f.textContent=o?'★':'☆'}};
+  r.append(b,f);fr.append(r);
+ });
+ box.append(fr);
+ if(list.length>LIM)box.append(el('p','note','Affinez la recherche pour voir les autres chaînes.'));
+}
+function tick(){
+ if(view==='home')document.querySelectorAll('#list .row').forEach(r=>{const c=channels[+r.dataset.i];if(c)fillRow(c,r.querySelector('i'),r.querySelector('u'))});
+ renderInfo();
+}
+function renderInfo(){
+ const c=channels[cur],b=$('#info');b.textContent='';if(!c)return;
+ const [n,x]=nowNext(c);b.append(el('h2',null,c.name));
+ if(n)b.append(el('p','mu',hm(n.s)+' – '+hm(n.e)),el('h3',null,n.t),el('p',null,n.d));
+ else b.append(el('p','mu',epgFail?'Guide indisponible (accès bloqué par le serveur). Importez le fichier XMLTV depuis « Playlist ».':'Pas de guide pour cette chaîne. Ajoutez un fichier XMLTV depuis « Playlist ».'));
+ if(x)b.append(el('p','mu','Ensuite, '+hm(x.s)+' : '+x.t));
+}
+function showHud(extra){
+ const c=channels[cur];if(!c)return;const [n,x]=nowNext(c);
+ $('#h1').textContent=c.n+'   '+c.name+(extra?' – '+extra:'');
+ $('#h2').textContent=n?hm(n.s)+' – '+hm(n.e)+'   '+n.t:'';
+ $('#h3').textContent=x?'Ensuite, '+hm(x.s)+' : '+x.t:'';
+ $('#hp').style.width=n?Math.min(100,(Date.now()-n.s)/(n.e-n.s)*100)+'%':'0';
+ const h=$('#hud');h.classList.add('show');clearTimeout(hudT);hudT=setTimeout(()=>h.classList.remove('show'),4500);
+}
+function setStatus(t){const s=$('#status');s.textContent='';if(t)s.append(el('span',null,t))}
+
+/* Lecture */
+function destroyHls(){if(hls){hls.destroy();hls=null}}
+function play(i,alt,auto){
+ const c=channels[i];if(!c)return;
+ cur=i;curAlt=alt||0;if(!auto)wd=0;clearTimeout(stallT);const src=curAlt?c.alt[curAlt-1]:c.url;retries=0;started=false;stalls=[];store.set('iptv.last',c.url);
+ recents=[c.url,...recents.filter(u=>u!==c.url)].slice(0,30);store.set('iptv.rec',JSON.stringify(recents));
+ document.querySelectorAll('#list .row').forEach(r=>r.classList.toggle('on',+r.dataset.i===i));
+ renderInfo();showHud('');setStatus('Chargement…');destroyHls();
+ const direct=/\.(mp4|webm|mkv)(\?|$)/i.test(src),useNat=eng==='native'||(eng==='auto'&&isTV&&!!v.canPlayType('application/vnd.apple.mpegurl'));
+ if(!direct&&!useNat&&window.Hls&&Hls.isSupported()){
+  hls=new Hls({enableWorker:true,lowLatencyMode:false,maxBufferLength:isTV?60:40,liveSyncDurationCount:isTV?5:3,maxMaxBufferLength:90,maxBufferSize:60e6,backBufferLength:20,startLevel:-1,abrEwmaDefaultEstimate:isTV?1.5e6:4e6,abrBandWidthFactor:0.8,abrBandWidthUpFactor:0.6,nudgeMaxRetry:6});
+  hls.on(Hls.Events.MANIFEST_PARSED,applyQuality);
+  hls.on(Hls.Events.ERROR,(_,d)=>{
+   if(!d.fatal)return;
+   if(d.type===Hls.ErrorTypes.NETWORK_ERROR&&retries++<3){setStatus('Reconnexion…');hls.startLoad()}
+   else if(d.type===Hls.ErrorTypes.MEDIA_ERROR&&retries++<3)hls.recoverMediaError();
+   else if(!nextAlt())setStatus('Flux indisponible. Essayez une autre chaîne.');
+  });
+  hls.loadSource(src);hls.attachMedia(v);
+ }else v.src=src;
+ v.play().catch(()=>{});
+}
+function nextAlt(){const c=channels[cur];if(c&&c.alt&&curAlt<c.alt.length){play(cur,curAlt+1);return true}return false}
+function zap(d){
+ const l=list.some(c=>c.i===cur)?list:channels;if(!l.length)return;
+ const k=l.findIndex(c=>c.i===cur);play(l[(k+d+l.length)%l.length].i);
+}
+function numKey(d){
+ numBuf+=d;const n=$('#num');n.textContent=numBuf;n.classList.add('show');clearTimeout(numT);
+ numT=setTimeout(()=>{const x=+numBuf,c=channels.find(c=>c.n===x);numBuf='';n.classList.remove('show');if(c)play(c.i)},1300);
+}
+v.addEventListener('playing',()=>{started=true;clearTimeout(stallT);setStatus('')});
+v.addEventListener('error',()=>{if(!hls&&!nextAlt())setStatus('Ce flux ne peut pas être lu sur cet appareil.')});
+v.addEventListener('waiting',()=>{
+ setStatus('Mise en mémoire…');
+ clearTimeout(stallT);stallT=setTimeout(()=>{if(wd++<3)play(cur,curAlt,true)},15000);
+ if(!started||!hls)return;
+ const now=Date.now();stalls=stalls.filter(t=>now-t<30000);stalls.push(now);
+ if(stalls.length>=3){
+  const l=hls.levels.length>1?(hls.currentLevel>=0?hls.currentLevel:hls.loadLevel):0;
+  if(l>0){hls.autoLevelCapping=l-1;stalls=[];$('#ql').textContent='Qualité : réduite';showHud('qualité réduite pour plus de fluidité')}
+  else if(eng!=='native'&&v.canPlayType('application/vnd.apple.mpegurl')){eng='native';store.set('iptv.eng',eng);stalls=[];play(cur,curAlt);showHud('lecteur natif activé pour plus de fluidité')}
+ }
+});
+
+/* Qualité */
+function levelHeights(){return hls?[...new Set(hls.levels.map(l=>l.height).filter(Boolean))].sort((a,b)=>b-a):[]}
+const qLabel=()=>qPref==='auto'?'Auto':'max '+qPref+'p';
+function applyQuality(){
+ if(!hls)return;let cap=-1;
+ if(qPref!=='auto'&&levelHeights().length){hls.levels.forEach((l,i)=>{if(l.height&&l.height<=+qPref)cap=Math.max(cap,i)});if(cap<0)cap=0}
+ hls.autoLevelCapping=cap;$('#ql').textContent='Qualité : '+qLabel();
+}
+function cycleQuality(){
+ if(!hls){showHud('qualité gérée par l’appareil');return}
+ const o=['auto',...levelHeights().map(String)];qPref=o[(o.indexOf(qPref)+1)%o.length];
+ store.set('iptv.q',qPref);applyQuality();showHud('qualité '+qLabel());
+}
+
+/* Vues : accueil, guide, plein écran */
+function nativeFS(){const s=$('#stage'),f=s.requestFullscreen||s.webkitRequestFullscreen;try{const p=f&&f.call(s);if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+function setView(nv,fromPop){
+ if(nv===view)return;
+ const was=view;view=nv;document.body.dataset.view=nv;
+ if(nv!=='home'){try{was==='home'?history.pushState({v:nv},''):history.replaceState({v:nv},'')}catch(e){}}
+ else if(!fromPop&&history.state&&history.state.v){try{history.back()}catch(e){}}
+ if(nv==='fs'){showHud('Haut/Bas : chaîne · Droite : qualité · Gauche : retour');nativeFS()}
+ else{try{if(document.fullscreenElement)document.exitFullscreen();else if(document.webkitFullscreenElement)document.webkitExitFullscreen()}catch(e){}}
+ if(nv==='guide')buildGuide();
+ if(nv==='home'){const o=document.querySelector('.row.on .ch')||document.querySelector('.ch');if(o)o.focus()}
+}
+addEventListener('popstate',()=>setView('home',true));
+document.addEventListener('fullscreenchange',()=>{if(view==='fs'&&!document.fullscreenElement)setView('home')});
+$('#fsb').onclick=()=>setView('fs');$('#ql').onclick=cycleQuality;
+$('#gBtn').onclick=()=>setView('guide');$('#gx').onclick=()=>setView('home');
+$('#stage').addEventListener('click',e=>{if(e.target!==v)return;if(view==='fs')showHud('');else setView('fs')});
+
+const PX=4;
+function buildGuide(){
+ const box=$('#gscroll');box.textContent='';
+ const t0=Math.floor((Date.now()-30*60e3)/18e5)*18e5,t1=t0+4*36e5,W=(t1-t0)/6e4*PX,now=Date.now();
+ const head=el('div','gt');head.style.width=(W+160)+'px';
+ for(let t=t0;t<t1;t+=18e5){const s=el('span','tk',hm(t));s.style.width=(18e5/6e4*PX)+'px';head.append(s)}
+ box.append(head);
+ (list.length?list:channels).slice(0,100).forEach(c=>{
+  const r=el('div','gr'),n=el('button','gn',c.n+'  '+c.name),l=el('div','gl'),go=()=>{play(c.i);setView('fs')};
+  n.onclick=go;l.style.width=W+'px';let any=false;
+  progs(c).forEach(p=>{
+   if(p.e<=t0||p.s>=t1)return;any=true;
+   const s=Math.max(p.s,t0),e=Math.min(p.e,t1),b=el('button','pg'+(p.s<=now&&now<p.e?' now':''),p.t);
+   b.title=hm(p.s)+' '+p.t;b.style.left=((s-t0)/6e4*PX)+'px';b.style.width=Math.max(20,(e-s)/6e4*PX-3)+'px';b.onclick=go;l.append(b);
+  });
+  if(!any)l.append(el('span','nop','Pas de programme'));
+  r.append(n,l);box.append(r);
+ });
+ const f=box.querySelector('.pg.now')||box.querySelector('.gn');if(f)f.focus();
+}
+
+/* Télécommande et clavier */
+const KC={37:'ArrowLeft',38:'ArrowUp',39:'ArrowRight',40:'ArrowDown',13:'Enter',27:'Escape',8:'Backspace',33:'PageUp',34:'PageDown',166:'ChannelUp',167:'ChannelDown',10009:'GoBack',461:'GoBack',415:'Play',19:'Pause'};
+addEventListener('keydown',e=>{
+ const k=(e.key&&e.key!=='Unidentified')?e.key:(KC[e.keyCode]||'');
+ if($('#gate').classList.contains('open'))return;
+ if($('#set').classList.contains('open')){if(k==='Escape'||k==='GoBack')$('#sClose').click();return}
+ if($('#imp').classList.contains('open')){if(k==='Escape'||k==='GoBack')closeImp();return}
+ if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName))return;
+ const stop=()=>e.preventDefault();
+ if(/^[0-9]$/.test(k)){numKey(k);stop();return}
+ if(k==='ChannelUp'){zap(1);stop();return}
+ if(k==='ChannelDown'){zap(-1);stop();return}
+ if(k==='MediaPlayPause'||k==='Play'||k==='Pause'){v.paused?v.play():v.pause();stop();return}
+ if(view==='fs'){
+  if(k==='ArrowUp'||k==='PageUp')zap(-1);
+  else if(k==='ArrowDown'||k==='PageDown')zap(1);
+  else if(k==='ArrowRight'||k==='q')cycleQuality();
+  else if(k==='ArrowLeft'||k==='Escape'||k==='Backspace'||k==='GoBack')setView('home');
+  else if(k==='Enter'||k===' '||k==='i')showHud('');
+  else if(k==='g')setView('guide');
+  else if(k==='m')v.muted=!v.muted;
+  else return;
+  stop();
+ }else if(view==='guide'){
+  if(k==='Escape'||k==='GoBack'||k==='Backspace'){setView('home');stop()}
+ }else if(k==='g')setView('guide');
+ else if(k==='f')setView('fs');
+});
+
+/* Import */
+function openImp(){renderPls();$('#imp').classList.add('open');$('#err').textContent='';$('#url').focus()}
+function closeImp(){if(channels.length){$('#imp').classList.remove('open');const o=document.querySelector('.row.on .ch')||document.querySelector('.ch');if(o)o.focus()}else $('#err').textContent='Ajoutez d’abord une playlist.'}
+$('#pBtn').onclick=openImp;$('#closeImp').onclick=closeImp;
+function loadList(text,wx){
+ const {out,tvg}=parseM3U(text,wx);
+ if(!out.length){$('#err').textContent='Aucune chaîne trouvée dans cette playlist.';return false}
+ channels=out;cur=-1;$('#q').value='';epg=new Map();names=new Map();
+ if(!['Favoris','Récents','Toutes'].includes(group)&&!channels.some(c=>c.group===group))group='Toutes';
+ if(!store.get('iptv.g')&&channels.some(c=>c.group==='French'))group='French';
+ renderGroups();renderList();renderInfo();$('#imp').classList.remove('open');
+ const last=store.get('iptv.last'),f=channels.find(c=>c.url===last)||channels[0];play(f.i);
+ const eu=store.get('iptv.epg')||tvg;if(eu)getEpg(eu);
+ return true;
+}
+$('#goUrl').onclick=async()=>{
+ const u=$('#url').value.trim();if(!u)return;$('#err').textContent='Chargement…';
+ try{const t=await fetchText(u);if(loadList(t))addPl($('#plName').value||hostOf(u),'url',u)}
+ catch(e){$('#err').textContent='Impossible de charger ce lien (accès bloqué par le serveur). Téléchargez la playlist et importez le fichier.'}
+};
+$('#file').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=await f.text();if(loadList(t))addPl($('#plName').value||f.name,'text',t.length<2e6?t:'')};
+$('#goTxt').onclick=()=>{const t=$('#txt').value;if(t.trim()&&loadList(t))addPl($('#plName').value||'Ma playlist','text',t.length<2e6?t:'')};
+$('#goEpg').onclick=async()=>{
+ const u=$('#epgUrl').value.trim();if(!u)return;$('#err').textContent='Chargement du guide…';
+ try{loadEpg(await fetchText(u));store.set('iptv.epg',u);$('#err').textContent='Guide chargé.'}
+ catch(e){$('#err').textContent='Guide inaccessible (accès bloqué ou lien invalide). Importez le fichier XMLTV.'}
+};
+$('#epgFile').onchange=async e=>{
+ const f=e.target.files[0];if(!f)return;$('#err').textContent='Lecture du guide…';
+ try{loadEpg(await fileText(f));$('#err').textContent='Guide chargé.'}catch(x){$('#err').textContent='Fichier XMLTV illisible.'}
+};
+$('#q').addEventListener('input',renderList);
+
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+setInterval(()=>{if(view!=='fs')tick()},60000);
+
+renderGroups();renderList();boot();
+</script>
+</body>
+</html>
