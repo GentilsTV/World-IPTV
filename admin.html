@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TiviOne — Tableau de Bord Admin</title>
+<meta name="theme-color" content="#0d1320">
+<style>
+:root{
+  --bg:#0d1320;--p:#141c2c;--p2:#1b2640;--ln:#27324d;
+  --tx:#e9edf6;--mu:#8e9bb6;--fo:#ffc83d;--ac:#4f86ff;
+  --gr:#10b981;--rd:#ef4444;color-scheme:dark
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:var(--p);border:1px solid var(--ln);border-radius:14px;padding:14px 18px;margin-bottom:16px}
+header h1{margin:0;font-size:20px;color:var(--fo)}
+.sub{font-size:13px;color:var(--mu)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{background:var(--ac);border:0;border-radius:10px;padding:10px 14px;font-weight:600;color:#fff}
+.btn.gh{background:transparent;border:1px solid var(--ln);color:var(--tx)}
+.btn.dn{background:var(--rd)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--p);border:1px solid var(--ln);border-radius:14px;padding:14px 16px}
+.stat span{display:block;font-size:13px;color:var(--mu)}
+.stat b{display:block;font-size:26px;margin-top:4px;color:var(--fo)}
+.stat.green b{color:var(--gr)}
+.stat.red b{color:var(--rd)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.toolbar input,.toolbar select{background:var(--p);border:1px solid var(--ln);border-radius:10px;padding:10px 14px}
+.toolbar input{flex:1;min-width:220px}
+.table-wrap{background:var(--p);border:1px solid var(--ln);border-radius:14px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:860px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--ln);vertical-align:top}
+th{background:var(--p2);font-size:13px;color:var(--mu);text-transform:uppercase;letter-spacing:.03em}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.badge.act{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.35)}
+.badge.exp{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.35)}
+.devs{display:grid;gap:6px}
+.dev-item{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:6px 10px;font-size:13px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.on{background:var(--gr);box-shadow:0 0 8px var(--gr)}
+.dot.off{background:var(--rd);box-shadow:0 0 6px rgba(239,68,68,.6)}
+.dev-meta{color:var(--mu);font-size:12px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+#loginGate{position:fixed;inset:0;background:rgba(5,8,14,.94);display:grid;place-items:center;padding:16px;z-index:10}
+#loginGate.hide{display:none}
+.card{width:min(420px,100%);background:var(--p);border:1px solid var(--ln);border-radius:16px;padding:22px;display:grid;gap:12px}
+.card h2{margin:0;color:var(--fo)}
+.card input{width:100%;background:var(--bg);border:1px solid var(--ln);border-radius:10px;padding:11px 14px}
+#lErr{color:var(--fo);font-size:14px;min-height:1.4em;word-break:break-word}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gr);margin-right:6px;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="card">
+    <h2>TiviOne Admin</h2>
+    <p class="sub">Entrez votre code administrateur pour suivre les appareils en direct et l’historique des abonnements.</p>
+    <input id="adminCode" type="text" value="TIVI-GENTILS SERVICES-480" placeholder="Ex: TIVI-GENTILS SERVICES-480" autocomplete="off" autocapitalize="characters">
+    <button type="button" class="btn" id="loginBtn">Accéder au tableau de bord</button>
+    <div id="lErr"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>TiviOne — Supervision Temps Réel</h1>
+      <div class="sub"><span class="pulse"></span>Actualisation auto (15 s) · Dernière mise à jour : <b id="lastUpd">—</b></div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn gh" id="refreshBtn">Actualiser maintenant</button>
+      <button type="button" class="btn dn" id="logoutBtn">Déconnexion</button>
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat green"><span>Appareils en ligne (Vert)</span><b id="stOnline">0</b></div>
+    <div class="stat red"><span>Appareils hors ligne (Rouge)</span><b id="stOffline">0</b></div>
+    <div class="stat"><span>Abonnements actifs</span><b id="stAct">0</b></div>
+    <div class="stat"><span>Abonnements expirés / inactifs</span><b id="stExp">0</b></div>
+    <div class="stat"><span>Total clients</span><b id="stTotal">0</b></div>
+  </section>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Rechercher un client, un code VIP, un parrain ou un appareil…">
+    <select id="filterState">
+      <option value="all">Tous les clients</option>
+      <option value="watching">En train de regarder (Voyant vert)</option>
+      <option value="offline">Hors ligne (Voyant rouge)</option>
+      <option value="active">Abonnement actif</option>
+      <option value="expired">Abonnement expiré / inactif</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Client &amp; Code VIP</th>
+          <th>Appareils (Temps réel)</th>
+          <th>Formule &amp; Historique</th>
+          <th>Date d’expiration</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="5" class="sub">Chargement des données…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyhr-XKy6_A_6-Z1JzAKXq_FuwGl5kT6kxZpMq_GOcAiqv5nBpaHIIqo_JtPnqHbVEU/exec';
+const $ = s => document.querySelector(s);
+
+let adminKey = localStorage.getItem('tivione.adminKey') || '';
+let allClients = [];
+let serverNow = Date.now();
+
+const fmtDate = ms => ms ? new Date(ms).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Non activé';
+const fmtPrice = n => n ? Number(n).toLocaleString('fr-FR') + ' F' : '—';
+
+function timeAgo(ms) {
+  if (!ms) return 'Jamais vu';
+  const diff = Math.max(0, Math.floor((serverNow - ms) / 1000));
+  if (diff < 60) return 'Il y a ' + diff + ' s';
+  if (diff < 3600) return 'Il y a ' + Math.floor(diff / 60) + ' min';
+  if (diff < 86400) return 'Il y a ' + Math.floor(diff / 3600) + ' h';
+  return 'Il y a ' + Math.floor(diff / 86400) + ' j';
+}
+
+function durationLabel(days) {
+  if (!days) return '—';
+  if (days === 30) return '1 Mois (30 j)';
+  if (days === 90) return '3 Mois (90 j)';
+  if (days === 180) return '6 Mois (180 j)';
+  if (days === 365) return '12 Mois (365 j)';
+  return days + ' jours';
+}
+
+async function fetchDashboard(fromUserClick) {
+  if (!adminKey) return;
+  if (fromUserClick) $('#lErr').textContent = 'Connexion au serveur en cours…';
+  try {
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify({ a: 'admin', adminKey: adminKey })
+    });
+    const txt = await r.text();
+    let data;
+    try {
+      data = JSON.parse(txt);
+    } catch (parseErr) {
+      $('#lErr').textContent = 'Réponse inattendue du serveur : ' + txt.slice(0, 120);
+      $('#loginGate').classList.remove('hide');
+      return;
+    }
+    if (!data.ok) {
+      $('#lErr').textContent = data.err || 'Accès refusé.';
+      $('#loginGate').classList.remove('hide');
+      return;
+    }
+    $('#lErr').textContent = '';
+    $('#loginGate').classList.add('hide');
+    allClients = data.clients || [];
+    serverNow = data.serverNow || Date.now();
+    $('#lastUpd').textContent = new Date().toLocaleTimeString('fr-FR');
+    render();
+  } catch (e) {
+    $('#lErr').textContent = 'Erreur réseau : ' + (e && e.message ? e.message : 'connexion impossible');
+    $('#loginGate').classList.remove('hide');
+    $('#lastUpd').textContent = 'Erreur réseau';
+  }
+}
+
+function render() {
+  const q = $('#search').value.trim().toLowerCase();
+  const f = $('#filterState').value;
+
+  let onlineDevs = 0, offlineDevs = 0, actCount = 0, expCount = 0;
+  allClients.forEach(c => {
+    if (c.active) actCount++; else expCount++;
+    (c.devices || []).forEach(d => { if (d.online) onlineDevs++; else offlineDevs++; });
+  });
+
+  $('#stOnline').textContent = onlineDevs;
+  $('#stOffline').textContent = offlineDevs;
+  $('#stAct').textContent = actCount;
+  $('#stExp').textContent = expCount;
+  $('#stTotal').textContent = allClients.length;
+
+  const filtered = allClients.filter(c => {
+    const hasOnline = (c.devices || []).some(d => d.online);
+    if (f === 'watching' && !hasOnline) return false;
+    if (f === 'offline' && hasOnline) return false;
+    if (f === 'active' && !c.active) return false;
+    if (f === 'expired' && c.active) return false;
+    if (!q) return true;
+    const hay = [c.username, c.code, c.parrain, ...(c.devices || []).map(d => d.id)].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+
+  const tb = $('#tbody');
+  tb.textContent = '';
+  if (!filtered.length) {
+    tb.innerHTML = '<tr><td colspan="5" class="sub">Aucun client correspondant à ce filtre.</td></tr>';
+    return;
+  }
+
+  filtered.forEach(c => {
+    const tr = document.createElement('tr');
+
+    const td1 = document.createElement('td');
+    td1.innerHTML = `<b>${esc(c.username || 'Sans nom')}</b><div class="mono" style="color:var(--fo)">${esc(c.code)}</div>` +
+      (c.parrain ? `<div class="sub">Parrain : ${esc(c.parrain)}</div>` : '');
+
+    const td2 = document.createElement('td');
+    const devs = c.devices || [];
+    if (!devs.length) {
+      td2.innerHTML = '<span class="sub">Aucun appareil enregistré</span>';
+    } else {
+      const box = document.createElement('div');
+      box.className = 'devs';
+      devs.forEach((d, idx) => {
+        const item = document.createElement('div');
+        item.className = 'dev-item';
+        const shortId = d.id.length > 14 ? d.id.slice(0, 8) + '…' + d.id.slice(-4) : d.id;
+        item.innerHTML = `
+          <span class="dot ${d.online ? 'on' : 'off'}" title="${d.online ? 'En ligne (regarde)' : 'Hors ligne'}"></span>
+          <div>
+            <div><b>Appareil #${idx + 1}</b> · <span class="mono">${esc(shortId)}</span></div>
+            <div class="dev-meta">${d.online ? '<span style="color:#34d399">En ligne · Regarde</span>' : '<span style="color:#f87171">Hors ligne</span>'} · ${timeAgo(d.lastSeen)}</div>
+          </div>`;
+        box.appendChild(item);
+      });
+      td2.appendChild(box);
+    }
+
+    const td3 = document.createElement('td');
+    td3.innerHTML = `<b>${durationLabel(c.days)}</b> (${fmtPrice(c.price)})` +
+      `<div class="sub">Inscrit le : ${fmtDate(c.inscriptionAt)}</div>` +
+      `<div class="sub">Activé le : ${fmtDate(c.activatedAt)}</div>`;
+
+    const td4 = document.createElement('td');
+    const remDays = c.expireAt ? Math.ceil((c.expireAt - serverNow) / 86400000) : 0;
+    td4.innerHTML = `<b>${fmtDate(c.expireAt)}</b>` +
+      (c.expireAt ? `<div class="sub">${remDays > 0 ? remDays + ' jour(s) restant(s)' : 'Expiré'}</div>` : '');
+
+    const td5 = document.createElement('td');
+    td5.innerHTML = c.active
+      ? '<span class="badge act">● Actif</span>'
+      : '<span class="badge exp">● Inactif / Expiré</span>';
+
+    tr.append(td1, td2, td3, td4, td5);
+    tb.appendChild(tr);
+  });
+}
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function triggerLogin() {
+  const k = ($('#adminCode').value || '').trim().toUpperCase();
+  if (!k) {
+    $('#lErr').textContent = 'Veuillez entrer votre code administrateur.';
+    return;
+  }
+  adminKey = k;
+  try { localStorage.setItem('tivione.adminKey', k); } catch (e) {}
+  fetchDashboard(true);
+}
+
+$('#loginBtn').addEventListener('click', triggerLogin);
+$('#adminCode').addEventListener('keydown', e => { if (e.key === 'Enter') triggerLogin(); });
+$('#refreshBtn').addEventListener('click', () => fetchDashboard(false));
+$('#logoutBtn').addEventListener('click', () => {
+  try { localStorage.removeItem('tivione.adminKey'); } catch (e) {}
+  adminKey = '';
+  $('#lErr').textContent = '';
+  $('#loginGate').classList.remove('hide');
+});
+$('#search').addEventListener('input', render);
+$('#filterState').addEventListener('change', render);
+
+if (adminKey) {
+  $('#adminCode').value = adminKey;
+  $('#loginGate').classList.add('hide');
+  fetchDashboard(false);
+}
+setInterval(() => { if (adminKey) fetchDashboard(false); }, 15000);
+</script>
+</body>
+</html>
